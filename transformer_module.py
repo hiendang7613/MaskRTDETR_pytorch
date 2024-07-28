@@ -291,7 +291,7 @@ class TransformerDecoderLayer(nn.Module):
             attn_mask = torch.where(
                 attn_mask.bool(),
                 torch.zeros_like(attn_mask, dtype=tgt.dtype),
-                torch.full_like(attn_mask, float("-inf"), dtype=tgt.dtype))
+                torch.full_like(attn_mask, float("-inf"), dtype=tgt.dtype)).to(tgt)
             
         tgt2 = self.self_attn(q, k, value=tgt, attn_mask=attn_mask)[0]
         tgt = tgt + self.dropout1(tgt2)
@@ -362,6 +362,8 @@ def mask_to_box_coordinate(mask,
         torch.arange(
             end=h, dtype=dtype), torch.arange(
                 end=w, dtype=dtype))
+    x = x.to(mask)
+    y = y.to(mask)
 
     x_mask = x * mask.to(x.dtype)
     x_max = x_mask.flatten(-2).max(-1)[0] + 1
@@ -376,7 +378,7 @@ def mask_to_box_coordinate(mask,
     mask = mask.any(axis=[2, 3]).unsqueeze(2)
     out_bbox = out_bbox * mask.to(out_bbox.dtype)
     if normalize:
-        out_bbox /= torch.tensor([w, h, w, h]).to(dtype)
+        out_bbox /= torch.tensor([w, h, w, h]).to(dtype).to(mask)
 
     return out_bbox if format == "xyxy" else bbox_xyxy_to_cxcywh(out_bbox)
 
@@ -436,7 +438,7 @@ def get_denoising_training_group(targets,
         input_query_bbox += diff
         input_query_bbox = inverse_sigmoid(input_query_bbox)
 
-    class_embed = torch.cat([class_embed, torch.zeros([1, class_embed.shape[-1]])])
+    class_embed = torch.cat([class_embed, torch.zeros([1, class_embed.shape[-1]]).to(class_embed)])
     input_query_class = class_embed[input_query_class.flatten()]
     input_query_class = input_query_class.reshape([bs, num_denoising, -1])
 
@@ -671,15 +673,15 @@ class MaskRTDETR(nn.Module):
             anchors, valid_mask = self._generate_anchors(spatial_shapes)
         else:
             anchors, valid_mask = self.anchors, self.valid_mask
-        memory = torch.where(valid_mask, memory, torch.tensor(0.))
+        memory = torch.where(valid_mask.to(memory).bool(), memory, torch.tensor(0).to(memory))
         output_memory = self.enc_output(memory)
 
         enc_logits_unact = self.score_head(output_memory)
-        enc_bboxes_unact = self.bbox_head(output_memory) + anchors
+        enc_bboxes_unact = self.bbox_head(output_memory) + anchors.to(memory)
 
         # get topk index
         _, topk_ind = torch.topk(enc_logits_unact.max(-1)[0], self.num_queries, dim=1)
-        batch_ind = torch.arange(bs).unsqueeze(-1).repeat(1, self.num_queries)
+        batch_ind = torch.arange(bs).unsqueeze(-1).repeat(1, self.num_queries).to(memory)
         topk_ind = torch.stack([batch_ind, topk_ind], dim=-1)
 
         # # extract content and position query embedding
@@ -721,7 +723,7 @@ class MaskRTDETR(nn.Module):
             reference_points = mask_to_box_coordinate(enc_out_masks > 0, normalize=True, format="xywh")
             reference_points_unact = inverse_sigmoid(reference_points)
         if denoising_bbox_unact is not None:
-            reference_points_unact = torch.cat([denoising_bbox_unact, reference_points_unact], 1)
+            reference_points_unact = torch.cat([denoising_bbox_unact.to(memory), reference_points_unact], 1)
 
         # direct prediction from the matching and denoising part in the beginning
         if self.training and denoising_class is not None:
