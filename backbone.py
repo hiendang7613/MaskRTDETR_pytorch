@@ -1,4 +1,6 @@
-
+import torch
+from torch import nn
+from utils import reset_bn, _freeze_norm, kaiming_normal_, ones_, zeros_
 
 class ConvBNAct(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=1, groups=1, use_act=True, use_lab=False, lr_mult=1.0):
@@ -383,3 +385,21 @@ class PPHGNetV2(nn.Module):
             if idx in self.return_idx:
                 outs.append(x)
         return outs
+
+
+if __name__ == '__main__':
+  arch= 'L'
+  use_lab= False
+  lr_mult_list= [0.0, 0.05, 0.05, 0.05, 0.05]
+  return_idx= [0, 1, 2, 3]
+  freeze_stem_only= True
+  freeze_at= 0
+  freeze_norm= True
+
+  pPHGNetV2 = PPHGNetV2(arch,
+    use_lab= use_lab,
+    lr_mult_list= lr_mult_list,
+    return_idx= return_idx,
+    freeze_stem_only= freeze_stem_only,
+    freeze_at= freeze_at,
+    freeze_norm= freeze_norm)
