@@ -518,8 +518,8 @@ class HungarianMatcher(nn.Module):
         out_bbox = boxes.detach().flatten(0, 1)
 
         # Also concat the target labels and boxes
-        tgt_ids = torch.cat(gt_class).flatten()
-        tgt_bbox = torch.cat(gt_bbox)
+        tgt_ids = gt_class.flatten()
+        tgt_bbox = gt_bbox.flatten(start_dim=0, end_dim=1)
       
         # Compute the classification cost
         out_prob = torch.gather(out_prob, 1, tgt_ids.unsqueeze(0).repeat(out_prob.shape[0],1))
@@ -552,7 +552,7 @@ class HungarianMatcher(nn.Module):
             out_mask = F.grid_sample(masks.detach(), sample_points, align_corners=False).squeeze(-2)
             out_mask = out_mask.flatten(0, 1)
 
-            tgt_mask = torch.cat(gt_mask).unsqueeze(1)
+            tgt_mask = gt_mask.flatten(start_dim=0, end_dim=1).unsqueeze(1)
             sample_points = torch.cat([a.repeat(b, 1, 1, 1) for a, b in zip(sample_points, num_gts) if b > 0])
             tgt_mask = F.grid_sample(tgt_mask, sample_points, align_corners=False).squeeze([1, 2])
 
@@ -628,11 +628,13 @@ class DETRLoss(nn.Module):
         # logits: [b, query, num_classes], gt_class: list[[n, 1]]
         name_class = "loss_class" + postfix
 
-        target_label = torch.full(logits.shape[:2], bg_index, dtype=torch.int64)
+        target_label = torch.full(logits.shape[:2], bg_index, dtype=torch.int64).to(logits.device)
         bs, num_query_objects = target_label.shape
         num_gt = sum(len(a) for a in gt_class)
         if num_gt > 0:
             index, updates = self._get_index_updates(num_query_objects, gt_class, match_indices)
+            index = index.to(logits.device)
+            updates = updates.to(logits)
             target_label = target_label.view(-1, 1).scatter_(0, index.unsqueeze(-1), updates.unsqueeze(-1).to(torch.int64)).view(bs, num_query_objects)
         if self.use_focal_loss:
             target_label = F.one_hot(target_label, self.num_classes + 1)[..., :-1].to(logits.device)
@@ -838,7 +840,7 @@ class DETRLoss(nn.Module):
         src_idx = torch.cat([src for (src, _) in match_indices])
         src_idx += (batch_idx * num_query_objects)
         target_assign = torch.cat([
-            t.gather(0, dst) for t, (_, dst) in zip(target, match_indices)
+            t.gather(0, dst.to(t)) for t, (_, dst) in zip(target, match_indices)
         ])
         return src_idx, target_assign
 
@@ -850,11 +852,11 @@ class DETRLoss(nn.Module):
         new_target_shape = (match_indices[0][1].shape[0],) + tuple(target[0].shape[1:])
         match_indices = [(i.broadcast_to(new_src_shape), j.broadcast_to(new_target_shape)) for i,j in match_indices]
         src_assign = torch.cat([
-            t.gather(0, I) if len(I) > 0 else torch.zeros([0, t.shape[-1]], device=t.device)
+            t.gather(0, I.to(t.device)) if len(I) > 0 else torch.zeros([0, t.shape[-1]], device=t.device)
             for t, (I, _) in zip(src, match_indices)
         ])
         target_assign = torch.cat([
-            t.gather(0, J) if len(J) > 0 else torch.zeros([0, t.shape[-1]], device=t.device)
+            t.gather(0, J.to(t.device)) if len(J) > 0 else torch.zeros([0, t.shape[-1]], device=t.device)
             for t, (_, J) in zip(target, match_indices)
         ])
         return src_assign, target_assign
@@ -1138,13 +1140,13 @@ class MaskDINOLoss(DETRLoss):
         # Sample points based on their uncertainty.
         masks = masks.detach()
         num_masks = masks.shape[0]
-        sample_points = torch.rand([num_masks, 1, self.num_oversample_points, 2])
+        sample_points = torch.rand([num_masks, 1, self.num_oversample_points, 2]).to(masks.device)
 
         out_mask = F.grid_sample(masks.unsqueeze(1), 2.0 * sample_points - 1.0, align_corners=False).squeeze(1).squeeze(1)
         out_mask = -torch.abs(out_mask)
 
         _, topk_ind = torch.topk(out_mask, self.num_important_points, dim=1)
-        batch_ind = torch.arange(end=num_masks, dtype=topk_ind.dtype)
+        batch_ind = torch.arange(end=num_masks, dtype=topk_ind.dtype).to(masks.device)
         batch_ind = batch_ind.unsqueeze(-1).repeat(1, self.num_important_points)
         topk_ind = torch.stack([batch_ind, topk_ind], dim=-1)
 
@@ -1152,7 +1154,7 @@ class MaskDINOLoss(DETRLoss):
         if self.num_random_points > 0:
             sample_points = torch.cat(
                 [sample_points,
-                 torch.rand([num_masks, self.num_random_points, 2])],
+                 torch.rand([num_masks, self.num_random_points, 2]).to(masks.device)],
                 dim=1)
         return sample_points
 
