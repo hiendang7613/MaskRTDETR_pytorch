@@ -6,7 +6,6 @@ import torch.nn.functional as F
 import copy
 import numpy as np
 from torch.nn import init
-import paddle
 from utils import gather_nd
 
 class MaskTransformerDecoder(nn.Module):
