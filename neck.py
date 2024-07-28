@@ -401,7 +401,7 @@ class HybridEncoder(nn.Module):
                         w, h, self.hidden_dim, self.pe_temperature)
                 else:
                     pos_embed = getattr(self, f'pos_embed{enc_ind}', None)
-                memory = self.encoder[i](src_flatten, pos_embed=pos_embed)
+                memory = self.encoder[i](src_flatten, pos_embed=pos_embed.to(src_flatten))
                 proj_feats[enc_ind] = memory.transpose(1, 2).view(
                     -1, self.hidden_dim, h, w)
 
