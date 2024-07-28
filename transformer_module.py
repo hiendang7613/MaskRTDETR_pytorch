@@ -7,7 +7,7 @@ import copy
 import numpy as np
 from torch.nn import init
 import paddle
-
+from utils import gather_nd
 
 class MaskTransformerDecoder(nn.Module):
     def __init__(self,
@@ -688,16 +688,17 @@ class MaskRTDETR(nn.Module):
         # reference_points_unact = torch.gather(enc_bboxes_unact, 1, topk_ind)  # unsigmoided.
         
         # extract content and position query embedding
-        output_memory = paddle.to_tensor(output_memory.detach().numpy())
-        topk_ind = paddle.to_tensor(topk_ind.detach().numpy())
-        enc_bboxes_unact = paddle.to_tensor(enc_bboxes_unact.detach().numpy())
-
-        target = paddle.gather_nd(output_memory, topk_ind)
-        reference_points_unact = paddle.gather_nd(enc_bboxes_unact,
+        # output_memory = paddle.to_tensor(output_memory.detach().numpy())
+        # topk_ind = paddle.to_tensor(topk_ind.detach().numpy())
+        # enc_bboxes_unact = paddle.to_tensor(enc_bboxes_unact.detach().numpy())
+        
+        target = gather_nd(output_memory, topk_ind)
+        # print(target.shape)
+        reference_points_unact = gather_nd(enc_bboxes_unact,
                                                   topk_ind)  # unsigmoided.
 
-        target = torch.tensor(target.numpy())
-        reference_points_unact = torch.tensor(reference_points_unact.numpy())
+        # target = torch.tensor(target.numpy())
+        # reference_points_unact = torch.tensor(reference_points_unact.numpy())
 
         
         
