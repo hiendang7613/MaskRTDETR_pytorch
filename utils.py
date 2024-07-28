@@ -2,6 +2,8 @@ import torch
 from torch import nn
 from torch.nn import init
 import torch.nn.functional as F
+import typing
+
 
 def gather_nd(x, index):
     index_shape = index.shape
