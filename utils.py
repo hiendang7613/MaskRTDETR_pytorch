@@ -3,6 +3,23 @@ from torch import nn
 from torch.nn import init
 import torch.nn.functional as F
 
+
+def gather_nd(x, index):
+    index_shape = index.shape
+    num_samples = index_shape[0]
+    last_dim = index_shape[-1]
+    
+    flat_index = index.reshape(-1, last_dim)
+    
+    output_shape = list(index_shape[:-1]) + list(x.shape[last_dim:])
+    output = torch.zeros(output_shape, dtype=x.dtype, device=x.device)
+    
+    for i in range(num_samples):
+        idx = tuple(flat_index[i].tolist())
+        output[i] = x[idx]
+    
+    return output
+    
 def sigmoid_focal_loss(logit, label, normalizer=1.0, alpha=0.25, gamma=2.0):
     prob = torch.sigmoid(logit)
     label = label.float()
