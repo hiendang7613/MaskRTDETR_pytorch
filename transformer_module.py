@@ -1,3 +1,11 @@
+import torch
+import torch.nn as nn
+import math
+from torch.nn.init import xavier_uniform_, constant_
+import torch.nn.functional as F
+import copy
+import numpy as np
+from torch.nn import init
 
 
 class MaskTransformerDecoder(nn.Module):
@@ -305,29 +313,9 @@ class TransformerDecoderLayer(nn.Module):
 
 
 def constant_(tensor, value=0.):
-    """
-    Modify tensor in place by filling it with a constant value.
-
-    Args:
-        tensor (torch.Tensor): PyTorch tensor.
-        value (float|int): Value to fill the tensor with.
-
-    Returns:
-        torch.Tensor: The modified tensor.
-    """
     return _no_grad_fill_(tensor, value)
 
 def _no_grad_fill_(tensor, value=0.):
-    """
-    Fill tensor with a constant value without tracking gradients.
-
-    Args:
-        tensor (torch.Tensor): PyTorch tensor.
-        value (float|int): Value to fill the tensor with.
-
-    Returns:
-        torch.Tensor: The modified tensor.
-    """
     with torch.no_grad():
         tensor.fill_(value)
     return tensor
@@ -366,14 +354,6 @@ def mask_to_box_coordinate(mask,
                            normalize=False,
                            format="xyxy",
                            dtype=torch.int32):
-    """
-    Compute the bounding boxes around the provided mask.
-    Args:
-        mask (Tensor:bool): [b, c, h, w]
-
-    Returns:
-        bbox (Tensor): [b, c, 4]
-    """
     assert mask.ndim == 4
     assert format in ["xyxy", "xywh"]
 
@@ -762,10 +742,6 @@ def _get_clones(module, N):
 
 
 class MLP(nn.Module):
-    """This code is based on
-        https://github.com/facebookresearch/detr/blob/main/models/detr.py
-    """
-
     def __init__(self, input_dim, hidden_dim, output_dim, num_layers):
         super().__init__()
         self.num_layers = num_layers
@@ -799,3 +775,56 @@ def linear_init_(module):
         # Khởi tạo bias (nếu có) với phân phối đồng đều
         if module.bias is not None:
             init.uniform_(module.bias, -bound, bound)
+
+
+if __name__ == '__main__':
+
+  num_classes=80
+  hidden_dim=256
+  num_queries=300
+  position_embed_type='sine'
+  backbone_feat_channels=[256, 256, 256]
+  feat_strides=[8, 16, 32]
+  num_prototypes=32
+  num_levels=3
+  num_decoder_points=4
+  nhead=8
+  num_decoder_layers=6
+  dim_feedforward=1024
+  dropout=0.
+  activation="relu"
+  num_denoising=100
+  label_noise_ratio=0.4
+  box_noise_scale=0.4
+  learnt_init_query=False
+  query_pos_head_inv_sig=False
+  mask_enhanced=True
+  eval_size=None
+  eval_idx=-1
+  eps=1e-2
+
+  maskRTDETR = MaskRTDETR(
+      num_classes=num_classes,
+      hidden_dim=hidden_dim,
+      num_queries=num_queries,
+      position_embed_type=position_embed_type,
+      backbone_feat_channels=backbone_feat_channels,
+      feat_strides=feat_strides,
+      num_prototypes=num_prototypes,
+      num_levels=num_levels,
+      num_decoder_points=num_decoder_points,
+      nhead=nhead,
+      num_decoder_layers=num_decoder_layers,
+      dim_feedforward=dim_feedforward,
+      dropout=dropout,
+      activation=activation,
+      num_denoising=num_denoising,
+      label_noise_ratio=label_noise_ratio,
+      box_noise_scale=box_noise_scale,
+      learnt_init_query=learnt_init_query,
+      query_pos_head_inv_sig=query_pos_head_inv_sig,
+      mask_enhanced=mask_enhanced,
+      eval_size=eval_size,
+      eval_idx=eval_idx,
+      eps=eps
+  )
