@@ -1,4 +1,9 @@
-# MaskDINOHead
+import torch
+import torch.nn as nn
+from torch.nn.init import xavier_uniform_, constant_
+import torch.nn.functional as F
+import numpy as np
+from loss import HungarianMatcher, MaskDINOLoss
 
 class MaskDINOHead(nn.Module):
     def __init__(self, loss='DINOLoss'):
@@ -67,3 +72,31 @@ class MaskDINOHead(nn.Module):
                 dn_meta=dn_meta)
         else:
             return (dec_out_bboxes[-1], dec_out_logits[-1], dec_out_masks[-1])
+
+if __name__ == '__main__':
+
+  matcher_coeff= {'class': 4, 'bbox': 5, 'giou': 2, 'mask': 5, 'dice': 5}
+  use_focal_loss= True
+  with_mask= True
+  num_sample_points= 12544
+  alpha= 0.25
+  gamma= 2.0
+
+
+  hungarian_matcher = HungarianMatcher(matcher_coeff, use_focal_loss, with_mask, num_sample_points, alpha, gamma)
+
+
+  num_classes= 80
+  matcher= hungarian_matcher
+  loss_coeff= {'class': 4, 'bbox': 5, 'giou': 2, 'mask': 5, 'dice': 5}
+  aux_loss= True
+  use_focal_loss= True
+  use_vfl= True
+  vfl_iou_type= 'mask'
+  num_sample_points= 12544
+  oversample_ratio= 3.0
+  important_sample_ratio= 0.75
+
+  loss = MaskDINOLoss(num_classes, matcher, loss_coeff, aux_loss, use_focal_loss, num_sample_points, oversample_ratio, important_sample_ratio)
+
+  maskDINOHead = MaskDINOHead(loss)
