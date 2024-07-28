@@ -1,6 +1,7 @@
 import torch
 from torch import nn
 from utils import reset_bn, _freeze_norm, kaiming_normal_, ones_, zeros_
+import torch.nn.functional as F
 
 class ConvBNAct(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=1, groups=1, use_act=True, use_lab=False, lr_mult=1.0):
