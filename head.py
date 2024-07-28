@@ -69,7 +69,7 @@ class MaskDINOHead(nn.Module):
                 dn_out_logits=dn_out_logits,
                 dn_out_bboxes=dn_out_bboxes,
                 dn_out_masks=dn_out_masks,
-                dn_meta=dn_meta)
+                dn_meta=dn_meta), (dec_out_bboxes[-1], dec_out_logits[-1], dec_out_masks[-1])
         else:
             return (dec_out_bboxes[-1], dec_out_logits[-1], dec_out_masks[-1])
 
