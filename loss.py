@@ -1,14 +1,11 @@
+import torch
+import torch.nn as nn
+from torch.nn.init import xavier_uniform_, constant_
+import torch.nn.functional as F
+import numpy as np
 
 
 class GIoULoss(object):
-    """
-    Generalized Intersection over Union, see https://arxiv.org/abs/1902.09630
-    Args:
-        loss_weight (float): giou loss weight, default as 1
-        eps (float): epsilon to avoid divide by zero, default as 1e-10
-        reduction (string): Options are "none", "mean" and "sum". default as none
-    """
-
     def __init__(self, loss_weight=1., eps=1e-10, reduction='none'):
         self.loss_weight = loss_weight
         self.eps = eps
@@ -16,16 +13,6 @@ class GIoULoss(object):
         self.reduction = reduction
 
     def bbox_overlap(self, box1, box2, eps=1e-10):
-        """calculate the iou of box1 and box2
-        Args:
-            box1 (Tensor): box1 with the shape (..., 4)
-            box2 (Tensor): box1 with the shape (..., 4)
-            eps (float): epsilon to avoid divide by zero
-        Return:
-            iou (Tensor): iou of box1 and box2
-            overlap (Tensor): overlap of box1 and box2
-            union (Tensor): union of box1 and box2
-        """
         x1, y1, x2, y2 = box1
         x1g, y1g, x2g, y2g = box2
 
@@ -497,10 +484,7 @@ class HungarianMatcher(nn.Module):
                  num_sample_points=12544,
                  alpha=0.25,
                  gamma=2.0):
-        r"""
-        Args:
-            matcher_coeff (dict): The coefficient of hungarian matcher cost.
-        """
+
         super(HungarianMatcher, self).__init__()
         self.matcher_coeff = matcher_coeff
         self.use_focal_loss = use_focal_loss
@@ -518,22 +502,7 @@ class HungarianMatcher(nn.Module):
                 gt_class,
                 masks=None,
                 gt_mask=None):
-        r"""
-        Args:
-            boxes (Tensor): [b, query, 4]
-            logits (Tensor): [b, query, num_classes]
-            gt_bbox (List(Tensor)): list[[n, 4]]
-            gt_class (List(Tensor)): list[[n, 1]]
-            masks (Tensor|None): [b, query, h, w]
-            gt_mask (List(Tensor)): list[[n, H, W]]
 
-        Returns:
-            A list of size batch_size, containing tuples of (index_i, index_j) where:
-                - index_i is the indices of the selected predictions (in order)
-                - index_j is the indices of the corresponding selected targets (in order)
-            For each batch element, it holds:
-                len(index_i) = len(index_j) = min(num_queries, num_target_boxes)
-        """
         bs, num_queries = boxes.shape[:2]
 
         num_gts = [len(a) for a in gt_class]
@@ -628,15 +597,7 @@ class DETRLoss(nn.Module):
                  use_vfl=False,
                  use_uni_match=False,
                  uni_match_ind=0):
-        r"""
-        Args:
-            num_classes (int): The number of classes.
-            matcher (HungarianMatcher): It computes an assignment between the targets
-                and the predictions of the network.
-            loss_coeff (dict): The coefficient of loss.
-            aux_loss (bool): If 'aux_loss = True', loss at each decoder layer are to be used.
-            use_focal_loss (bool): Use focal loss or not.
-        """
+
         super(DETRLoss, self).__init__()
 
         self.num_classes = num_classes
@@ -966,16 +927,6 @@ class DETRLoss(nn.Module):
                 postfix="",
                 gt_score=None,
                 **kwargs):
-        r"""
-        Args:
-            boxes (Tensor): [l, b, query, 4]
-            logits (Tensor): [l, b, query, num_classes]
-            gt_bbox (List(Tensor)): list[[n, 4]]
-            gt_class (List(Tensor)): list[[n, 1]]
-            masks (Tensor, optional): [l, b, query, h, w]
-            gt_mask (List(Tensor), optional): list[[n, H, W]]
-            postfix (str): postfix of loss name
-        """
 
         dn_match_indices = kwargs.get("dn_match_indices", None)
         num_gts = kwargs.get("num_gts", None)
