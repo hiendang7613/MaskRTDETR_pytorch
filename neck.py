@@ -1,4 +1,8 @@
-
+import torch
+import torch.nn as nn
+from torch.nn.init import xavier_uniform_, constant_
+import torch.nn.functional as F
+import numpy as np
 
 class RepVggBlock(nn.Module):
     def __init__(self, ch_in, ch_out, act='relu', alpha=False):
@@ -573,3 +577,56 @@ class MaskHybridEncoder(HybridEncoder):
         mask_feat = self.enc_mask_output(mask_feat)
 
         return enc_feats, mask_feat
+
+if __name__ == '__main__':
+  d_model= 256
+  nhead= 8
+  dim_feedforward= 1024
+  dropout= 0.0
+  activation= 'gelu'
+  attn_dropout= None
+  act_dropout= None
+  normalize_before= False
+
+  encoder_layer= TransformerLayer(
+      d_model=d_model,
+      nhead=nhead,
+      dim_feedforward=dim_feedforward,
+      dropout=dropout,
+      activation=activation,
+      attn_dropout=attn_dropout,
+      act_dropout=act_dropout,
+      normalize_before=normalize_before
+  )
+
+  in_channels= [128, 512, 1024, 2048]
+  feat_strides= [4, 8, 16, 32]
+  hidden_dim= 256
+  use_encoder_idx= [3]
+  num_encoder_layers= 1
+  # encoder_layer= encoder_layer
+  num_prototypes= 32
+  pe_temperature= 10000
+  expansion= 1.0
+  depth_mult= 1.0
+  mask_feat_channels= [64, 64]
+  act= 'silu'
+  trt= False
+  eval_size= [640, 640]
+
+  maskHybridEncoder = MaskHybridEncoder(
+      in_channels=in_channels,
+      feat_strides=feat_strides,
+      hidden_dim=hidden_dim,
+      use_encoder_idx=use_encoder_idx,
+      num_encoder_layers=num_encoder_layers,
+      encoder_layer=encoder_layer,
+      num_prototypes=num_prototypes,
+      pe_temperature=pe_temperature,
+      expansion=expansion,
+      depth_mult=depth_mult,
+      mask_feat_channels=mask_feat_channels,
+      act=act,
+      trt=trt,
+      eval_size=eval_size
+  )
