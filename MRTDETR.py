@@ -70,9 +70,9 @@ class MRTDETR(BaseArch):
 
         # DETR Head
         if self.training:
-            detr_losses = self.detr_head(out_transformer, body_feats, self.inputs)
+            detr_losses, preds = self.detr_head(out_transformer, body_feats, self.inputs)
             detr_losses['loss'] = sum(v for k, v in detr_losses.items() if 'log' not in k)
-            return detr_losses
+            return detr_losses, preds
         else:
             preds = self.detr_head(out_transformer, body_feats)
             if self.exclude_post_process:
