@@ -3,6 +3,17 @@ from torch import nn
 from torch.nn import init
 import torch.nn.functional as F
 
+def sigmoid_focal_loss(logit, label, normalizer=1.0, alpha=0.25, gamma=2.0):
+    prob = torch.sigmoid(logit)
+    label = label.float()
+    ce_loss = F.binary_cross_entropy_with_logits(logit, label, reduction="none")
+    p_t = prob * label + (1 - prob) * (1 - label)
+    loss = ce_loss * ((1 - p_t)**gamma)
+
+    if alpha >= 0:
+        alpha_t = alpha * label + (1 - alpha) * (1 - label)
+        loss = alpha_t * loss
+    return loss.mean(1).sum() / normalizer
 
 # Kaiming Normal initialization
 def kaiming_normal_(tensor, mode='fan_in', nonlinearity='relu'):
