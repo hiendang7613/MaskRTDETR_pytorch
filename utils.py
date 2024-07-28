@@ -1,5 +1,7 @@
+import torch
 from torch import nn
 from torch.nn import init
+import torch.nn.functional as F
 
 
 # Kaiming Normal initialization
