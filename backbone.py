@@ -23,7 +23,7 @@ class ConvBNAct(nn.Module):
         self.bn = nn.BatchNorm2d(out_channels)
 
         # Activation function (ReLU)
-        self.act = nn.ReLU(inplace=True) if use_act else None
+        self.act = nn.ReLU() if use_act else None
 
         # Learnable affine block
         if self.use_lab:
