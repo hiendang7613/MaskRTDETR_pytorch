@@ -1,3 +1,5 @@
+from torch import nn
+from torch.nn import init
 
 
 # Kaiming Normal initialization
@@ -149,3 +151,4 @@ class BaseArch(nn.Module):
 
     def get_pred(self):
         raise NotImplementedError("Should implement get_pred method!")
+
