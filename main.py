@@ -136,7 +136,13 @@ def get_model(config_path):
 if __name__ == '__main__':
     
     pytorch_model = get_model('config.json')
-    
+      
+
+    # Load configuration from JSON file
+    with open('config.json', 'r') as config_file:
+        config = json.load(config_file)
+    training_config = config['training']
+
     image_size = training_config['image_size']
     label_id = training_config['label_id']
     num_instance = training_config['num_instance']
