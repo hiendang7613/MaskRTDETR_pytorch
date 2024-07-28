@@ -633,7 +633,7 @@ class DETRLoss(nn.Module):
         num_gt = sum(len(a) for a in gt_class)
         if num_gt > 0:
             index, updates = self._get_index_updates(num_query_objects, gt_class, match_indices)
-            target_label = target_label.view(-1, 1).scatter_(0, index.unsqueeze(-1), updates.to(torch.int64)).view(bs, num_query_objects)
+            target_label = target_label.view(-1, 1).scatter_(0, index.unsqueeze(-1), updates.unsqueeze(-1).to(torch.int64)).view(bs, num_query_objects)
         if self.use_focal_loss:
             target_label = F.one_hot(target_label, self.num_classes + 1)[..., :-1].to(logits.device)
             if iou_score is not None and self.use_vfl:
@@ -838,7 +838,7 @@ class DETRLoss(nn.Module):
         src_idx = torch.cat([src for (src, _) in match_indices])
         src_idx += (batch_idx * num_query_objects)
         target_assign = torch.cat([
-            t.gather(0, dst.unsqueeze(1)) for t, (_, dst) in zip(target, match_indices)
+            t.gather(0, dst) for t, (_, dst) in zip(target, match_indices)
         ])
         return src_idx, target_assign
 
