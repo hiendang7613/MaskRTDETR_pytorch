@@ -1,0 +1,92 @@
+{
+  "backbone": {
+    "arch": "L",
+    "use_lab": false,
+    "lr_mult_list": [0.0, 0.05, 0.05, 0.05, 0.05],
+    "return_idx": [0, 1, 2, 3],
+    "freeze_stem_only": true,
+    "freeze_at": 0,
+    "freeze_norm": true
+  },
+  "matcher": {
+    "matcher_coeff": {"class": 4, "bbox": 5, "giou": 2, "mask": 5, "dice": 5},
+    "use_focal_loss": true,
+    "with_mask": true,
+    "num_sample_points": 12544,
+    "alpha": 0.25,
+    "gamma": 2.0
+  },
+  "loss": {
+    "num_classes": 80,
+    "loss_coeff": {"class": 4, "bbox": 5, "giou": 2, "mask": 5, "dice": 5},
+    "aux_loss": true,
+    "use_focal_loss": true,
+    "use_vfl": true,
+    "vfl_iou_type": "mask",
+    "num_sample_points": 12544,
+    "oversample_ratio": 3.0,
+    "important_sample_ratio": 0.75
+  },
+  "neck": {
+    "d_model": 256,
+    "nhead": 8,
+    "dim_feedforward": 1024,
+    "dropout": 0.0,
+    "activation": "gelu",
+    "attn_dropout": null,
+    "act_dropout": null,
+    "normalize_before": false,
+    "in_channels": [128, 512, 1024, 2048],
+    "feat_strides": [4, 8, 16, 32],
+    "hidden_dim": 256,
+    "use_encoder_idx": [3],
+    "num_encoder_layers": 1,
+    "num_prototypes": 32,
+    "pe_temperature": 10000,
+    "expansion": 1.0,
+    "depth_mult": 1.0,
+    "mask_feat_channels": [64, 64],
+    "act": "silu",
+    "trt": false,
+    "eval_size": [640, 640]
+  },
+  "transformer": {
+    "num_classes": 80,
+    "hidden_dim": 256,
+    "num_queries": 300,
+    "position_embed_type": "sine",
+    "backbone_feat_channels": [256, 256, 256],
+    "feat_strides": [8, 16, 32],
+    "num_prototypes": 32,
+    "num_levels": 3,
+    "num_decoder_points": 4,
+    "nhead": 8,
+    "num_decoder_layers": 6,
+    "dim_feedforward": 1024,
+    "dropout": 0.0,
+    "activation": "relu",
+    "num_denoising": 100,
+    "label_noise_ratio": 0.4,
+    "box_noise_scale": 0.4,
+    "learnt_init_query": false,
+    "query_pos_head_inv_sig": false,
+    "mask_enhanced": true,
+    "eval_size": null,
+    "eval_idx": -1,
+    "eps": 0.01
+  },
+  "MRTDETR": {
+    "post_process": null,
+    "post_process_semi": null,
+    "with_mask": true,
+    "exclude_post_process": false
+  },
+  "training": {
+    "training": true,
+    "image_size": 224,
+    "label_id": 0,
+    "num_instance": 1,
+    "batch_size": 2,
+    "num_channels": 3
+  }
+}
