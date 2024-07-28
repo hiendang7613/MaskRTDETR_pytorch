@@ -1,211 +1,146 @@
+import json
+import torch
+import numpy as np
 from backbone import PPHGNetV2
 from transformer_module import MaskRTDETR
 from neck import MaskHybridEncoder, TransformerLayer
 from head import MaskDINOHead
 from loss import HungarianMatcher, MaskDINOLoss
-from head import MaskDINOHead
 from MRTDETR import MRTDETR
 
-import torch
-import numpy as np
-import torch.nn.functional as F
+# Load configuration from JSON file
+with open('/content/config.json', 'r') as config_file:
+    config = json.load(config_file)
 
+# Backbone configuration
+backbone_config = config['backbone']
+pPHGNetV2 = PPHGNetV2(
+    arch=backbone_config['arch'],
+    use_lab=backbone_config['use_lab'],
+    lr_mult_list=backbone_config['lr_mult_list'],
+    return_idx=backbone_config['return_idx'],
+    freeze_stem_only=backbone_config['freeze_stem_only'],
+    freeze_at=backbone_config['freeze_at'],
+    freeze_norm=backbone_config['freeze_norm']
+)
 
-# backbone
-arch= 'L'
-use_lab= False
-lr_mult_list= [0.0, 0.05, 0.05, 0.05, 0.05]
-return_idx= [0, 1, 2, 3]
-freeze_stem_only= True
-freeze_at= 0
-freeze_norm= True
+# Matcher configuration
+matcher_config = config['matcher']
+hungarian_matcher = HungarianMatcher(
+    matcher_config['matcher_coeff'],
+    matcher_config['use_focal_loss'],
+    matcher_config['with_mask'],
+    matcher_config['num_sample_points'],
+    matcher_config['alpha'],
+    matcher_config['gamma']
+)
 
-pPHGNetV2 = PPHGNetV2(arch,
-  use_lab= use_lab,
-  lr_mult_list= lr_mult_list,
-  return_idx= return_idx,
-  freeze_stem_only= freeze_stem_only,
-  freeze_at= freeze_at,
-  freeze_norm= freeze_norm)
-
-
-
-
-#head
-
-matcher_coeff= {'class': 4, 'bbox': 5, 'giou': 2, 'mask': 5, 'dice': 5}
-use_focal_loss= True
-with_mask= True
-num_sample_points= 12544
-alpha= 0.25
-gamma= 2.0
-
-
-hungarian_matcher = HungarianMatcher(matcher_coeff, use_focal_loss, with_mask, num_sample_points, alpha, gamma)
-
-num_classes= 80
-matcher= hungarian_matcher
-loss_coeff= {'class': 4, 'bbox': 5, 'giou': 2, 'mask': 5, 'dice': 5}
-aux_loss= True
-use_focal_loss= True
-use_vfl= True
-vfl_iou_type= 'mask'
-num_sample_points= 12544
-oversample_ratio= 3.0
-important_sample_ratio= 0.75
-
-loss = MaskDINOLoss(num_classes, matcher, loss_coeff, aux_loss, use_focal_loss, num_sample_points, oversample_ratio, important_sample_ratio)
+# Loss configuration
+loss_config = config['loss']
+loss = MaskDINOLoss(
+    loss_config['num_classes'],
+    hungarian_matcher,
+    loss_config['loss_coeff'],
+    loss_config['aux_loss'],
+    loss_config['use_focal_loss'],
+    loss_config['num_sample_points'],
+    loss_config['oversample_ratio'],
+    loss_config['important_sample_ratio']
+)
 
 maskDINOHead = MaskDINOHead(loss)
 
-
-#neck
-d_model= 256
-nhead= 8
-dim_feedforward= 1024
-dropout= 0.0
-activation= 'gelu'
-attn_dropout= None
-act_dropout= None
-normalize_before= False
-
-encoder_layer= TransformerLayer(
-    d_model=d_model,
-    nhead=nhead,
-    dim_feedforward=dim_feedforward,
-    dropout=dropout,
-    activation=activation,
-    attn_dropout=attn_dropout,
-    act_dropout=act_dropout,
-    normalize_before=normalize_before
+# Neck configuration
+neck_config = config['neck']
+encoder_layer = TransformerLayer(
+    d_model=neck_config['d_model'],
+    nhead=neck_config['nhead'],
+    dim_feedforward=neck_config['dim_feedforward'],
+    dropout=neck_config['dropout'],
+    activation=neck_config['activation'],
+    attn_dropout=neck_config['attn_dropout'],
+    act_dropout=neck_config['act_dropout'],
+    normalize_before=neck_config['normalize_before']
 )
-
-in_channels= [128, 512, 1024, 2048]
-feat_strides= [4, 8, 16, 32]
-hidden_dim= 256
-use_encoder_idx= [3]
-num_encoder_layers= 1
-# encoder_layer= encoder_layer
-num_prototypes= 32
-pe_temperature= 10000
-expansion= 1.0
-depth_mult= 1.0
-mask_feat_channels= [64, 64]
-act= 'silu'
-trt= False
-eval_size= [640, 640]
 
 maskHybridEncoder = MaskHybridEncoder(
-    in_channels=in_channels,
-    feat_strides=feat_strides,
-    hidden_dim=hidden_dim,
-    use_encoder_idx=use_encoder_idx,
-    num_encoder_layers=num_encoder_layers,
+    in_channels=neck_config['in_channels'],
+    feat_strides=neck_config['feat_strides'],
+    hidden_dim=neck_config['hidden_dim'],
+    use_encoder_idx=neck_config['use_encoder_idx'],
+    num_encoder_layers=neck_config['num_encoder_layers'],
     encoder_layer=encoder_layer,
-    num_prototypes=num_prototypes,
-    pe_temperature=pe_temperature,
-    expansion=expansion,
-    depth_mult=depth_mult,
-    mask_feat_channels=mask_feat_channels,
-    act=act,
-    trt=trt,
-    eval_size=eval_size
+    num_prototypes=neck_config['num_prototypes'],
+    pe_temperature=neck_config['pe_temperature'],
+    expansion=neck_config['expansion'],
+    depth_mult=neck_config['depth_mult'],
+    mask_feat_channels=neck_config['mask_feat_channels'],
+    act=neck_config['act'],
+    trt=neck_config['trt'],
+    eval_size=neck_config['eval_size']
 )
 
-# transformer module
-num_classes=80
-hidden_dim=256
-num_queries=300
-position_embed_type='sine'
-backbone_feat_channels=[256, 256, 256]
-feat_strides=[8, 16, 32]
-num_prototypes=32
-num_levels=3
-num_decoder_points=4
-nhead=8
-num_decoder_layers=6
-dim_feedforward=1024
-dropout=0.
-activation="relu"
-num_denoising=100
-label_noise_ratio=0.4
-box_noise_scale=0.4
-learnt_init_query=False
-query_pos_head_inv_sig=False
-mask_enhanced=True
-eval_size=None
-eval_idx=-1
-eps=1e-2
-
+# Transformer module configuration
+transformer_config = config['transformer']
 maskRTDETR = MaskRTDETR(
-    num_classes=num_classes,
-    hidden_dim=hidden_dim,
-    num_queries=num_queries,
-    position_embed_type=position_embed_type,
-    backbone_feat_channels=backbone_feat_channels,
-    feat_strides=feat_strides,
-    num_prototypes=num_prototypes,
-    num_levels=num_levels,
-    num_decoder_points=num_decoder_points,
-    nhead=nhead,
-    num_decoder_layers=num_decoder_layers,
-    dim_feedforward=dim_feedforward,
-    dropout=dropout,
-    activation=activation,
-    num_denoising=num_denoising,
-    label_noise_ratio=label_noise_ratio,
-    box_noise_scale=box_noise_scale,
-    learnt_init_query=learnt_init_query,
-    query_pos_head_inv_sig=query_pos_head_inv_sig,
-    mask_enhanced=mask_enhanced,
-    eval_size=eval_size,
-    eval_idx=eval_idx,
-    eps=eps
+    num_classes=transformer_config['num_classes'],
+    hidden_dim=transformer_config['hidden_dim'],
+    num_queries=transformer_config['num_queries'],
+    position_embed_type=transformer_config['position_embed_type'],
+    backbone_feat_channels=transformer_config['backbone_feat_channels'],
+    feat_strides=transformer_config['feat_strides'],
+    num_prototypes=transformer_config['num_prototypes'],
+    num_levels=transformer_config['num_levels'],
+    num_decoder_points=transformer_config['num_decoder_points'],
+    nhead=transformer_config['nhead'],
+    num_decoder_layers=transformer_config['num_decoder_layers'],
+    dim_feedforward=transformer_config['dim_feedforward'],
+    dropout=transformer_config['dropout'],
+    activation=transformer_config['activation'],
+    num_denoising=transformer_config['num_denoising'],
+    label_noise_ratio=transformer_config['label_noise_ratio'],
+    box_noise_scale=transformer_config['box_noise_scale'],
+    learnt_init_query=transformer_config['learnt_init_query'],
+    query_pos_head_inv_sig=transformer_config['query_pos_head_inv_sig'],
+    mask_enhanced=transformer_config['mask_enhanced'],
+    eval_size=transformer_config['eval_size'],
+    eval_idx=transformer_config['eval_idx'],
+    eps=transformer_config['eps']
 )
 
-# MRTDETR
-
-backbone = pPHGNetV2
-transformer = maskRTDETR
-detr_head = maskDINOHead
-neck = maskHybridEncoder
-post_process= None
-post_process_semi= None
-with_mask= True
-exclude_post_process= False
-
-
-
-
+# MRTDETR configuration
+mRTDETR_config = config['MRTDETR']
 model = MRTDETR(
-    backbone=backbone,
-    transformer=transformer,
-    detr_head=detr_head,
-    neck=neck,
-    post_process=post_process,
-    post_process_semi=post_process_semi,
-    with_mask=with_mask,
-    exclude_post_process=exclude_post_process
+    backbone=pPHGNetV2,
+    transformer=maskRTDETR,
+    detr_head=maskDINOHead,
+    neck=maskHybridEncoder,
+    post_process=mRTDETR_config['post_process'],
+    post_process_semi=mRTDETR_config['post_process_semi'],
+    with_mask=mRTDETR_config['with_mask'],
+    exclude_post_process=mRTDETR_config['exclude_post_process']
 )
 
-
-training = True
+# Training configuration
+training_config = config['training']
+training = training_config['training']
 pytorch_model = model
 pytorch_model.training = training
 pytorch_model.transformer.training = training
 pytorch_model.exclude_post_process = False
 pytorch_model.detr_head.training = training
 
-image_size = 224
-label_id = 0
-num_instance = 1
-batch_size = 2
-num_channels = 3
+image_size = training_config['image_size']
+label_id = training_config['label_id']
+num_instance = training_config['num_instance']
+batch_size = training_config['batch_size']
+num_channels = training_config['num_channels']
 
 inputs = {
     'image': torch.rand((batch_size, num_channels, image_size, image_size)),
     'gt_bbox': [torch.rand((num_instance, 4)) for _ in range(batch_size)],
-    'gt_class': [torch.tensor(np.array(num_instance*[label_id])) for _ in range(batch_size)],
-    'gt_segm': [torch.randint(0,1,(num_instance, image_size, image_size), dtype=torch.float) for _ in range(batch_size)],
+    'gt_class': [torch.tensor(np.array(num_instance * [label_id])) for _ in range(batch_size)],
+    'gt_segm': [torch.randint(0, 1, (num_instance, image_size, image_size), dtype=torch.float) for _ in range(batch_size)],
 }
+
 out = pytorch_model(inputs)
