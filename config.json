@@ -53,7 +53,7 @@
   "transformer": {
     "num_classes": 80,
     "hidden_dim": 256,
-    "num_queries": 300,
+    "num_queries": 1,
     "position_embed_type": "sine",
     "backbone_feat_channels": [256, 256, 256],
     "feat_strides": [8, 16, 32],
