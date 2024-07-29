@@ -76,22 +76,22 @@ class GIoULoss(object):
         num_gt = sum(len(a) for a in gt_class)
         if num_gt > 0:
             index, updates = self._get_index_updates(num_query_objects, gt_class, match_indices)
-            target_label = target_label.view(-1, 1).scatter_(0, index, updates.to(torch.int64)).view(bs, num_query_objects)
+            target_label = target_label.view(-1, 1).scatter(0, index, updates.to(torch.int64)).view(bs, num_query_objects)
         if self.use_focal_loss:
             target_label = F.one_hot(target_label, self.num_classes + 1)[..., :-1].to(logits.device)
             if iou_score is not None and self.use_vfl:
                 if gt_score is not None:
                     target_score = torch.zeros([bs, num_query_objects], device=logits.device)
-                    target_score = target_score.view(-1, 1).scatter_(0, index, gt_score).view(bs, num_query_objects, 1) * target_label
+                    target_score = target_score.view(-1, 1).scatter(0, index, gt_score).view(bs, num_query_objects, 1) * target_label
 
                     target_score_iou = torch.zeros([bs, num_query_objects], device=logits.device)
-                    target_score_iou = target_score_iou.view(-1, 1).scatter_(0, index, iou_score).view(bs, num_query_objects, 1) * target_label
+                    target_score_iou = target_score_iou.view(-1, 1).scatter(0, index, iou_score).view(bs, num_query_objects, 1) * target_label
                     target_score = target_score * target_score_iou
                     loss_ = self.loss_coeff['class'] * varifocal_loss_with_logits(logits, target_score, target_label, num_gts / num_query_objects)
                 else:
                     target_score = torch.zeros([bs, num_query_objects], device=logits.device)
                     if num_gt > 0:
-                        target_score = target_score.view(-1, 1).scatter_(0, index, iou_score).view(bs, num_query_objects, 1) * target_label
+                        target_score = target_score.view(-1, 1).scatter(0, index, iou_score).view(bs, num_query_objects, 1) * target_label
                     loss_ = self.loss_coeff['class'] * varifocal_loss_with_logits(logits, target_score, target_label, num_gts / num_query_objects)
             else:
                 loss_ = self.loss_coeff['class'] * sigmoid_focal_loss(logits, target_label, num_gts / num_query_objects)
@@ -252,7 +252,7 @@ class GIoULoss(object):
         num_gts = torch.tensor([num_gts], dtype=dtype, device=targets[0].device)
         if torch.distributed.is_initialized():
             torch.distributed.all_reduce(num_gts)
-            num_gts /= torch.distributed.get_world_size()
+            num_gts = num_gts / torch.distributed.get_world_size()
         num_gts = torch.clamp(num_gts, min=1.)
         return num_gts
 
@@ -391,79 +391,6 @@ class GIoULoss(object):
 
         return total_loss
 
-
-# class GIoULoss(object):
-#     """
-#     Generalized Intersection over Union, see https://arxiv.org/abs/1902.09630
-#     Args:
-#         loss_weight (float): giou loss weight, default as 1
-#         eps (float): epsilon to avoid divide by zero, default as 1e-10
-#         reduction (string): Options are "none", "mean" and "sum". default as none
-#     """
-
-#     def __init__(self, loss_weight=1., eps=1e-10, reduction='none'):
-#         self.loss_weight = loss_weight
-#         self.eps = eps
-#         assert reduction in ('none', 'mean', 'sum')
-#         self.reduction = reduction
-
-#     def bbox_overlap(self, box1, box2, eps=1e-10):
-#         """calculate the iou of box1 and box2
-#         Args:
-#             box1 (Tensor): box1 with the shape (..., 4)
-#             box2 (Tensor): box1 with the shape (..., 4)
-#             eps (float): epsilon to avoid divide by zero
-#         Return:
-#             iou (Tensor): iou of box1 and box2
-#             overlap (Tensor): overlap of box1 and box2
-#             union (Tensor): union of box1 and box2
-#         """
-#         x1, y1, x2, y2 = box1
-#         x1g, y1g, x2g, y2g = box2
-
-#         xkis1 = torch.maximum(x1, x1g)
-#         ykis1 = torch.maximum(y1, y1g)
-#         xkis2 = torch.minimum(x2, x2g)
-#         ykis2 = torch.minimum(y2, y2g)
-#         w_inter = (xkis2 - xkis1).clamp(min=0)
-#         h_inter = (ykis2 - ykis1).clamp(min=0)
-#         overlap = w_inter * h_inter
-
-#         area1 = (x2 - x1) * (y2 - y1)
-#         area2 = (x2g - x1g) * (y2g - y1g)
-#         union = area1 + area2 - overlap + eps
-#         iou = overlap / union
-
-#         return iou, overlap, union
-
-#     def __call__(self, pbox, gbox, iou_weight=1., loc_reweight=None):
-#         x1, y1, x2, y2 = torch.chunk(pbox, 4, dim=-1)
-#         x1g, y1g, x2g, y2g = torch.chunk(gbox, 4, dim=-1)
-#         box1 = [x1, y1, x2, y2]
-#         box2 = [x1g, y1g, x2g, y2g]
-#         iou, overlap, union = self.bbox_overlap(box1, box2, self.eps)
-#         xc1 = torch.minimum(x1, x1g)
-#         yc1 = torch.minimum(y1, y1g)
-#         xc2 = torch.maximum(x2, x2g)
-#         yc2 = torch.maximum(y2, y2g)
-
-#         area_c = (xc2 - xc1) * (yc2 - yc1) + self.eps
-#         miou = iou - ((area_c - union) / area_c)
-#         if loc_reweight is not None:
-#             loc_reweight = loc_reweight.view(-1, 1)
-#             loc_thresh = 0.9
-#             giou = 1 - (1 - loc_thresh) * miou - loc_thresh * miou * loc_reweight
-#         else:
-#             giou = 1 - miou
-#         if self.reduction == 'none':
-#             loss = giou
-#         elif self.reduction == 'sum':
-#             loss = torch.sum(giou * iou_weight)
-#         else:
-#             loss = torch.mean(giou * iou_weight)
-#         return loss * self.loss_weight
-
-
 def bbox_cxcywh_to_xyxy(x):
     cxcy, wh = torch.split(x, 2, dim=-1)
     return torch.cat([cxcy - 0.5 * wh, cxcy + 0.5 * wh], dim=-1)
@@ -561,7 +488,7 @@ class HungarianMatcher(nn.Module):
                 pos_cost_mask = F.binary_cross_entropy_with_logits(out_mask, torch.ones_like(out_mask), reduction='none')
                 neg_cost_mask = F.binary_cross_entropy_with_logits(out_mask, torch.zeros_like(out_mask), reduction='none')
                 cost_mask = torch.matmul(pos_cost_mask, tgt_mask.t()) + torch.matmul(neg_cost_mask, (1 - tgt_mask).t())
-                cost_mask /= self.num_sample_points
+                cost_mask = cost_mask / self.num_sample_points
 
                 # dice cost
                 out_mask = torch.sigmoid(out_mask)
@@ -635,22 +562,22 @@ class DETRLoss(nn.Module):
             index, updates = self._get_index_updates(num_query_objects, gt_class, match_indices)
             index = index.to(logits.device)
             updates = updates.to(logits)
-            target_label = target_label.view(-1, 1).scatter_(0, index.unsqueeze(-1), updates.unsqueeze(-1).to(torch.int64)).view(bs, num_query_objects)
+            target_label = target_label.view(-1, 1).scatter(0, index.unsqueeze(-1), updates.unsqueeze(-1).to(torch.int64)).view(bs, num_query_objects)
         if self.use_focal_loss:
             target_label = F.one_hot(target_label, self.num_classes + 1)[..., :-1].to(logits.device)
             if iou_score is not None and self.use_vfl:
                 if gt_score is not None:
                     target_score = torch.zeros([bs, num_query_objects], device=logits.device)
-                    target_score = target_score.view(-1, 1).scatter_(0, index, gt_score).view(bs, num_query_objects, 1) * target_label
+                    target_score = target_score.view(-1, 1).scatter(0, index, gt_score).view(bs, num_query_objects, 1) * target_label
 
                     target_score_iou = torch.zeros([bs, num_query_objects], device=logits.device)
-                    target_score_iou = target_score_iou.view(-1, 1).scatter_(0, index, iou_score).view(bs, num_query_objects, 1) * target_label
+                    target_score_iou = target_score_iou.view(-1, 1).scatter(0, index, iou_score).view(bs, num_query_objects, 1) * target_label
                     target_score = target_score * target_score_iou
                     loss_ = self.loss_coeff['class'] * varifocal_loss_with_logits(logits, target_score, target_label, num_gts / num_query_objects)
                 else:
                     target_score = torch.zeros([bs, num_query_objects], device=logits.device)
                     if num_gt > 0:
-                        target_score = target_score.view(-1, 1).scatter_(0, index, iou_score).view(bs, num_query_objects, 1) * target_label
+                        target_score = target_score.view(-1, 1).scatter(0, index, iou_score).view(bs, num_query_objects, 1) * target_label
                     loss_ = self.loss_coeff['class'] * varifocal_loss_with_logits(logits, target_score, target_label, num_gts / num_query_objects)
             else:
                 loss_ = self.loss_coeff['class'] * sigmoid_focal_loss(logits, target_label, num_gts / num_query_objects)
@@ -829,7 +756,7 @@ class DETRLoss(nn.Module):
         num_gts = torch.tensor([num_gts], dtype=dtype, device=targets[0].device)
         if torch.distributed.is_initialized():
             torch.distributed.all_reduce(num_gts)
-            num_gts /= torch.distributed.get_world_size()
+            num_gts = num_gts / torch.distributed.get_world_size()
         num_gts = torch.clamp(num_gts, min=1.)
         return num_gts
     
@@ -866,7 +793,7 @@ class DETRLoss(nn.Module):
         num_gts = torch.tensor([num_gts], dtype=dtype, device=targets[0].device)
         if torch.distributed.is_initialized():
             torch.distributed.all_reduce(num_gts)
-            num_gts /= torch.distributed.get_world_size()
+            num_gts = num_gts / torch.distributed.get_world_size()
         num_gts = torch.clamp(num_gts, min=1.)
         return num_gts
 
@@ -999,7 +926,7 @@ class DINOLoss(DETRLoss):
                 gt_class, dn_positive_idx, dn_num_group)
 
             # compute denoising training loss
-            num_gts *= dn_num_group
+            num_gts = num_gts * dn_num_group
             dn_loss = super(DINOLoss, self).forward(
                 dn_out_bboxes,
                 dn_out_logits,
@@ -1083,6 +1010,8 @@ class MaskDINOLoss(DETRLoss):
             masks=masks,
             gt_mask=gt_mask,
             num_gts=num_gts)
+        
+        # return total_loss
 
         if dn_meta is not None:
             dn_positive_idx, dn_num_group = dn_meta["dn_positive_idx"], dn_meta["dn_num_group"]
@@ -1093,7 +1022,8 @@ class MaskDINOLoss(DETRLoss):
                 gt_class, dn_positive_idx, dn_num_group)
 
             # compute denoising training loss
-            num_gts *= dn_num_group
+            num_gts = num_gts * dn_num_group
+            # return total_loss
             dn_loss = super(MaskDINOLoss, self).forward(
                 dn_out_bboxes,
                 dn_out_logits,

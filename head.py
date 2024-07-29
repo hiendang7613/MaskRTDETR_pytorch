@@ -10,7 +10,7 @@ class MaskDINOHead(nn.Module):
         super(MaskDINOHead, self).__init__()
         self.loss = loss
 
-    def forward(self, out_transformer, body_feats, inputs=None):
+    def forward(self, out_transformer, inputs=None):
         dec_out_logits, dec_out_bboxes, dec_out_masks, enc_out, init_out, dn_meta = out_transformer
         
         if self.training:

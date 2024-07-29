@@ -165,7 +165,7 @@ class MSDeformableAttention(nn.Module):
         grid_init = grid_init / grid_init.abs().max(-1, keepdim=True)[0]
         grid_init = grid_init.view(self.num_heads, 1, 1, 2).repeat(1, self.num_levels, self.num_points, 1)
         scaling = torch.arange(1, self.num_points + 1, dtype=torch.float32).view(1, 1, -1, 1)
-        grid_init *= scaling
+        grid_init = grid_init * scaling
         self.sampling_offsets.bias.data.copy_(grid_init.view(-1))
 
         # attention_weights
@@ -205,7 +205,7 @@ class MSDeformableAttention(nn.Module):
         value = self.value_proj(value)
         if value_mask is not None:
             value_mask = value_mask.to(value.dtype).unsqueeze(-1)
-            value *= value_mask
+            value = value * value_mask
         value = value.view(bs, Len_v, self.num_heads, self.head_dim)
 
         sampling_offsets = self.sampling_offsets(query).view(
@@ -378,7 +378,7 @@ def mask_to_box_coordinate(mask,
     mask = mask.any(axis=[2, 3]).unsqueeze(2)
     out_bbox = out_bbox * mask.to(out_bbox.dtype)
     if normalize:
-        out_bbox /= torch.tensor([w, h, w, h]).to(dtype).to(mask)
+        out_bbox = out_bbox / torch.tensor([w, h, w, h]).to(dtype).to(mask)
 
     return out_bbox if format == "xyxy" else bbox_xyxy_to_cxcywh(out_bbox)
 
@@ -434,7 +434,7 @@ def get_denoising_training_group(targets,
 
     if box_noise_scale > 0:
         diff = torch.cat([input_query_bbox[..., 2:] * 0.5, input_query_bbox[..., 2:]], dim=-1) * box_noise_scale
-        diff *= (torch.rand(input_query_bbox.shape) * 2.0 - 1.0)
+        diff = diff * (torch.rand(input_query_bbox.shape) * 2.0 - 1.0)
         input_query_bbox = input_query_bbox + diff
         input_query_bbox = inverse_sigmoid(input_query_bbox)
 
