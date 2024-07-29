@@ -230,7 +230,7 @@ class GIoULoss(object):
             torch.full_like(src, i) for i, (src, _) in enumerate(match_indices)
         ])
         src_idx = torch.cat([src for (src, _) in match_indices])
-        src_idx += (batch_idx * num_query_objects)
+        src_idx = src_idx + (batch_idx * num_query_objects)
         target_assign = torch.cat([
             t.gather(0, dst) for t, (_, dst) in zip(target, match_indices)
         ])
@@ -806,7 +806,7 @@ class DETRLoss(nn.Module):
             torch.full_like(src, i) for i, (src, _) in enumerate(match_indices)
         ])
         src_idx = torch.cat([src for (src, _) in match_indices])
-        src_idx += (batch_idx * num_query_objects)
+        src_idx = src_idx + (batch_idx * num_query_objects)
 
         target_assign = torch.cat([
             t.gather(0, dst) for t, (_, dst) in zip(target, match_indices)
@@ -838,7 +838,7 @@ class DETRLoss(nn.Module):
             torch.full_like(src, i) for i, (src, _) in enumerate(match_indices)
         ])
         src_idx = torch.cat([src for (src, _) in match_indices])
-        src_idx += (batch_idx * num_query_objects)
+        src_idx = src_idx + (batch_idx * num_query_objects)
         target_assign = torch.cat([
             t.gather(0, dst.to(t)) for t, (_, dst) in zip(target, match_indices)
         ])

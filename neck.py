@@ -218,7 +218,7 @@ class MultiHeadAttention(nn.Module):
         product = product * scaling
 
         if attn_mask is not None:
-            product += attn_mask
+            product = product + attn_mask
 
         weights = F.softmax(product, dim=-1)
         if self.dropout > 0:
@@ -573,7 +573,7 @@ class MaskHybridEncoder(HybridEncoder):
             scale_factor=2,
             mode='bilinear',
             align_corners=False)
-        mask_feat += self.enc_mask_lateral(x4_feat)
+        mask_feat = mask_feat + self.enc_mask_lateral(x4_feat)
         mask_feat = self.enc_mask_output(mask_feat)
 
         return enc_feats, mask_feat

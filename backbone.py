@@ -250,7 +250,7 @@ class HG_Block(nn.Module):
         x = self.aggregation_excitation_conv(x)
 
         if self.identity:
-            x += identity
+            x = x + identity
 
         return x
 

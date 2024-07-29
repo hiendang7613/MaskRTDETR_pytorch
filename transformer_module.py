@@ -435,7 +435,7 @@ def get_denoising_training_group(targets,
     if box_noise_scale > 0:
         diff = torch.cat([input_query_bbox[..., 2:] * 0.5, input_query_bbox[..., 2:]], dim=-1) * box_noise_scale
         diff *= (torch.rand(input_query_bbox.shape) * 2.0 - 1.0)
-        input_query_bbox += diff
+        input_query_bbox = input_query_bbox + diff
         input_query_bbox = inverse_sigmoid(input_query_bbox)
 
     class_embed = torch.cat([class_embed, torch.zeros([1, class_embed.shape[-1]]).to(class_embed)])
